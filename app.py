@@ -161,7 +161,7 @@ def evaluar_proyecto_con_gemini(requerimientos_texto: str, codigo_texto: str) ->
     prompt_usuario = f"REQUERIMIENTOS A EVALUAR:\n{requerimientos_texto}\n\nCÓDIGO FUENTE COMPLETO DEL PROYECTO:\n{codigo_texto}"
 
     response = client.models.generate_content(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         contents=prompt_usuario,
         config={
             "response_mime_type": "application/json",
