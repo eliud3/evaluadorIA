@@ -105,11 +105,15 @@ def crear_pdf_bytes(reporte: ReporteEvaluacion) -> bytes:
     buffer.seek(0)
     return buffer.getvalue()
 
-try:
-    api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
-    client = genai.Client(api_key=api_key)
-except Exception as e:
-    st.error(f"Error al inicializar Google GenAI: {e}")
+api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else os.getenv("GEMINI_API_KEY")
+
+if not api_key:
+    st.warning("Por favor, configura tu GEMINI_API_KEY para poder iniciar la evaluación.")
+else:
+    try:
+        client = genai.Client(api_key=api_key)
+    except Exception as e:
+        st.error(f"Error al inicializar Google GenAI: {e}")
 
 def extraer_texto_requerimientos(archivo) -> str:
     nombre_archivo = archivo.name
@@ -120,7 +124,8 @@ def extraer_texto_requerimientos(archivo) -> str:
         texto_completo = ""
         for pagina in lector_pdf.pages:
             texto_pagina = pagina.extract_text()
-            if texto_pagina: texto_completo += texto_pagina + "\n"
+            if texto_pagina: 
+                texto_completo += texto_pagina + "\n"
         return texto_completo
     elif nombre_archivo.endswith('.docx'):
         documento = docx.Document(archivo)
@@ -161,12 +166,13 @@ def evaluar_proyecto_con_gemini(requerimientos_texto: str, codigo_texto: str) ->
     prompt_usuario = f"REQUERIMIENTOS A EVALUAR:\n{requerimientos_texto}\n\nCÓDIGO FUENTE COMPLETO DEL PROYECTO:\n{codigo_texto}"
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-1.5-pro",
         contents=prompt_usuario,
         config={
             "response_mime_type": "application/json",
             "response_schema": ReporteEvaluacion,
-            "system_instruction": prompt_sistema
+            "system_instruction": prompt_sistema,
+            "temperature": 0.0
         }
     )
     return response.parsed
@@ -183,15 +189,17 @@ with col2:
     texto_codigo = ""
     if metodo_carga == "Archivos .py sueltos":
         archivos_py = st.file_uploader("Selecciona archivos (.py)", type=["py"], accept_multiple_files=True)
-        if archivos_py: texto_codigo = extraer_codigo_de_lista_py(archivos_py)
+        if archivos_py: 
+            texto_codigo = extraer_codigo_de_lista_py(archivos_py)
     else:
         archivo_zip = st.file_uploader("Sube el archivo (.zip)", type=["zip"])
-        if archivo_zip: texto_codigo = extraer_codigo_de_zip(archivo_zip)
+        if archivo_zip: 
+            texto_codigo = extraer_codigo_de_zip(archivo_zip)
 
 st.divider()
 
 if st.button("🚀 Iniciar Revisión Automática", type="primary"):
-    if archivo_req and texto_codigo:
+    if 'client' in globals() and archivo_req and texto_codigo:
         texto_req = extraer_texto_requerimientos(archivo_req)
         
         if not texto_req.strip() or not texto_codigo.strip():
@@ -236,4 +244,4 @@ if st.button("🚀 Iniciar Revisión Automática", type="primary"):
                 except Exception as e:
                     st.error(f"Ocurrió un error en la evaluación: {e}")
     else:
-        st.warning("Faltan archivos por subir.")
+        st.warning("Faltan archivos por subir o la API Key no está configurada correctamente.")
